@@ -1,0 +1,20 @@
+# Run these commands after deployment on your Plesk server
+
+# Set proper permissions
+find . -type f -exec chmod 644 {} \;
+find . -type d -exec chmod 755 {} \;
+chmod -R 775 storage
+chmod -R 775 bootstrap/cache
+chmod +x artisan
+
+# Create storage symbolic link
+php artisan storage:link --force
+
+# Clear and rebuild Laravel caches for production
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
