@@ -1,0 +1,31 @@
+# Basic rewrite rules for Laravel
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # If Plesk is already handling HTTPS, we can remove these rules
+    # HTTPS forcing - COMMENT THESE OUT if using Plesk or another proxy
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+    
+    # Handle Front Controller
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Sitemap XML Handling
+<FilesMatch "sitemap\.xml$">
+    ForceType application/xml
+</FilesMatch>
+
+# PHP settings
+<IfModule mod_php8.c>
+    php_value upload_max_filesize 64M
+    php_value post_max_size 64M
+    php_value max_execution_time 300
+    php_value memory_limit 256M
+</IfModule> 

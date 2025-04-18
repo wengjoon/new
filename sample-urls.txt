@@ -1,0 +1,15 @@
+https://example.com/
+https://example.com/about
+https://example.com/contact
+https://example.com/products
+https://example.com/services
+https://example.com/blog
+https://example.com/blog/post-1
+https://example.com/blog/post-2
+https://example.com/blog/post-3
+https://example.com/blog/post-4
+https://example.com/faq
+https://example.com/terms
+https://example.com/privacy
+https://example.com/support
+https://example.com/careers

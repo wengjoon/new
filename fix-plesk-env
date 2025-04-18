@@ -1,0 +1,35 @@
+APP_NAME="TikTok Fame"
+APP_ENV=production
+APP_DEBUG=true
+APP_URL=https://tiktokfame.net
+APP_KEY=base64:y2gyIWmSrQ4SmFKRIPIQkynkLIZ8+GgTcgUiCyB2vE8=
+
+LOG_CHANNEL=stack
+LOG_LEVEL=debug
+
+DB_CONNECTION=sqlite
+DB_DATABASE=/var/www/vhosts/tiktokfame.net/database/database.sqlite
+
+BROADCAST_DRIVER=log
+CACHE_DRIVER=file
+FILESYSTEM_DISK=local
+QUEUE_CONNECTION=sync
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+
+# Remove session domain settings - may be causing issues
+# SESSION_DOMAIN=tiktokfame.net
+# SESSION_SECURE_COOKIE=true
+
+MEMCACHED_HOST=127.0.0.1
+
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+MAIL_MAILER=log
+MAIL_FROM_ADDRESS="info@tiktokfame.net"
+MAIL_FROM_NAME="${APP_NAME}"
+
+VITE_APP_NAME="${APP_NAME}"
+VITE_APP_URL="${APP_URL}" 
