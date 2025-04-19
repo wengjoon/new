@@ -1,0 +1,3 @@
+# This file will automatically track URLs that have been included in the sitemap
+# The generate_sitemap.php script will update this file each time it runs
+# Initially empty - will be populated after first sitemap generation 

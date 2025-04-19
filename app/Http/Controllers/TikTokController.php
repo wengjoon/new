@@ -39,8 +39,21 @@ class TikTokController extends Controller
         return redirect()->route('user.profile', ['username' => $username]);
     }
 
-    public function userProfile(Request $request, $username)
+    public function userProfile(Request $request, $username = null)
     {
+        // If username is not provided in URL, try to get it from the query string
+        if (empty($username) && $request->has('username')) {
+            $username = $request->input('username');
+            // Remove @ if present
+            $username = ltrim($username, '@');
+            // Redirect to the canonical URL
+            return redirect()->route('user.profile', ['username' => $username]);
+        }
+        
+        if (empty($username)) {
+            return redirect()->route('home')->with('error', 'Please enter a username');
+        }
+        
         try {
             $forceRefresh = $request->attributes->get('force_refresh', false);
             
@@ -291,5 +304,75 @@ class TikTokController extends Controller
             'success' => true,
             'message' => 'Cache warming scheduled for ' . count($trendingProfiles) . ' trending profiles'
         ]);
+    }
+
+    /**
+     * Show the "How It Works" page with detailed explanation of anonymous viewing
+     */
+    public function howItWorks()
+    {
+        return view('pages.how-it-works');
+    }
+
+    /**
+     * Show the "Popular TikTok Profiles" page
+     */
+    public function popularProfiles()
+    {
+        // These could be retrieved from a database, but for now, we'll hardcode some popular profiles
+        $popularProfiles = [
+            [
+                'username' => 'charlidamelio',
+                'name' => 'Charli D\'Amelio',
+                'followers' => '149.5M',
+                'description' => 'One of the most-followed creators on TikTok known for her dance videos',
+                'image' => '/images/profile-placeholder.svg',
+            ],
+            [
+                'username' => 'khaby.lame',
+                'name' => 'Khaby Lame',
+                'followers' => '160.3M',
+                'description' => 'Known for his silent comedy videos where he mocks overly complicated life hacks',
+                'image' => '/images/profile-placeholder.svg',
+            ],
+            [
+                'username' => 'addisonre',
+                'name' => 'Addison Rae',
+                'followers' => '88.9M',
+                'description' => 'Dancer and actress known for her dance videos and collaborations',
+                'image' => '/images/profile-placeholder.svg',
+            ],
+            [
+                'username' => 'zachking',
+                'name' => 'Zach King',
+                'followers' => '78.6M',
+                'description' => 'Digital illusionist known for his "magic" videos with creative editing',
+                'image' => '/images/profile-placeholder.svg',
+            ],
+            [
+                'username' => 'bellapoarch',
+                'name' => 'Bella Poarch',
+                'followers' => '92.7M',
+                'description' => 'Singer and content creator known initially for her lip-syncing and facial expressions',
+                'image' => '/images/profile-placeholder.svg',
+            ],
+            [
+                'username' => 'willsmith',
+                'name' => 'Will Smith',
+                'followers' => '72.2M',
+                'description' => 'Actor and entertainer sharing comedy and behind-the-scenes content',
+                'image' => '/images/profile-placeholder.svg',
+            ],
+        ];
+        
+        return view('pages.popular-profiles', compact('popularProfiles'));
+    }
+
+    /**
+     * Show the "TikTok Tips" page
+     */
+    public function tikTokTips()
+    {
+        return view('pages.tiktok-tips');
     }
 } 

@@ -4,8 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    <!-- Primary Meta Tags -->
+    <title>{{ $user['nickname'] }} ({{"@" . $user['uniqueId']}}) TikTok Videos - Watch Anonymously | TikTok Viewer</title>
+    <meta name="description" content="View {{ $user['nickname'] }}'s (@{{ $user['uniqueId'] }}) TikTok videos anonymously without an account. Browse all content from this TikTok creator privately and securely.">
+    <meta name="keywords" content="{{ $user['uniqueId'] }} tiktok, {{ $user['nickname'] }} videos, watch tiktok anonymously, tiktok profile viewer, {{ $user['uniqueId'] }} content, tiktok without account, private tiktok viewing">
+    
+    <!-- Canonical Tag -->
+    <link rel="canonical" href="{{ url()->current() }}">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="profile">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:title" content="{{ $user['nickname'] }} (@{{ $user['uniqueId'] }}) TikTok Videos - Watch Anonymously">
+    <meta property="og:description" content="View {{ $user['nickname'] }}'s TikTok videos anonymously without logging in. Browse all content from this creator privately.">
+    <meta property="og:image" content="{{ $user['avatarThumb'] }}">
+    <meta property="profile:username" content="{{ $user['uniqueId'] }}">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="{{ url()->current() }}">
+    <meta name="twitter:title" content="{{ $user['nickname'] }} (@{{ $user['uniqueId'] }}) TikTok Videos">
+    <meta name="twitter:description" content="View {{ $user['nickname'] }}'s TikTok videos anonymously without an account. Browse all their content privately.">
+    <meta name="twitter:image" content="{{ $user['avatarThumb'] }}">
+    
     <meta name="google-analytics-id" content="{{ config('analytics.measurement_id') }}">
-    <title>{{ $user['nickname'] }} ({{"@" . $user['uniqueId']}}) videos - TikTok Viewer</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -273,10 +296,18 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ route('home') }}">Home</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('how.it.works') }}">How It Works</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('popular.profiles') }}">Popular Profiles</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('tiktok.tips') }}">TikTok Tips</a>
+                    </li>
                 </ul>
-                <form class="d-flex header-search" action="{{ route('search') }}" method="POST">
-                    @csrf
-                    <input class="form-control me-2" type="search" name="username" placeholder="TikTok Username (e.g., @tiktok)">
+                <form class="d-flex header-search" action="{{ url('/user') }}" method="GET">
+                    <input class="form-control me-2" type="search" name="username" placeholder="TikTok Username">
                     <button class="btn btn-danger" type="submit">Go</button>
                 </form>
             </div>
@@ -603,5 +634,90 @@
             }
         });
     </script>
+
+    <!-- Schema.org Person Markup -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "name": "{{ $user['nickname'] }}",
+        "alternateName": "@{{ $user['uniqueId'] }}",
+        "identifier": "{{ $user['uniqueId'] }}",
+        "description": "{{ $user['signature'] ?? 'TikTok creator' }}",
+        "image": "{{ $user['avatarThumb'] }}",
+        "url": "https://www.tiktok.com/@{{ $user['uniqueId'] }}",
+        "sameAs": [
+            "https://www.tiktok.com/@{{ $user['uniqueId'] }}"
+        ],
+        "mainEntityOfPage": {
+            "@type": "ProfilePage",
+            "@id": "{{ url()->current() }}"
+        }
+    }
+    </script>
+
+    <!-- Schema.org BreadcrumbList Markup -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "{{ url('/') }}"
+            },
+            {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "{{ $user['nickname'] }} (@{{ $user['uniqueId'] }})",
+                "item": "{{ url()->current() }}"
+            }
+        ]
+    }
+    </script>
+
+    <!-- Schema.org VideoObject Markup (for first video) -->
+    @if(isset($items) && count($items) > 0)
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "VideoObject",
+        "name": "{{ $items[0]['desc'] ?? 'TikTok video by '.$user['nickname'] }}",
+        "description": "{{ $items[0]['desc'] ?? 'TikTok video created by '.$user['nickname'].' (@'.$user['uniqueId'].')' }}",
+        "thumbnailUrl": "{{ $items[0]['video']['cover'] ?? $items[0]['video']['dynamicCover'] ?? '' }}",
+        "uploadDate": "{{ \Carbon\Carbon::createFromTimestamp($items[0]['createTime'])->toIso8601String() }}",
+        "duration": "PT{{ $items[0]['video']['duration'] ?? 0 }}S",
+        "interactionStatistic": [
+            {
+                "@type": "InteractionCounter",
+                "interactionType": "https://schema.org/WatchAction",
+                "userInteractionCount": "{{ $items[0]['stats']['playCount'] ?? 0 }}"
+            },
+            {
+                "@type": "InteractionCounter",
+                "interactionType": "https://schema.org/LikeAction",
+                "userInteractionCount": "{{ $items[0]['stats']['diggCount'] ?? 0 }}"
+            },
+            {
+                "@type": "InteractionCounter",
+                "interactionType": "https://schema.org/CommentAction",
+                "userInteractionCount": "{{ $items[0]['stats']['commentCount'] ?? 0 }}"
+            },
+            {
+                "@type": "InteractionCounter",
+                "interactionType": "https://schema.org/ShareAction",
+                "userInteractionCount": "{{ $items[0]['stats']['shareCount'] ?? 0 }}"
+            }
+        ],
+        "author": {
+            "@type": "Person",
+            "name": "{{ $user['nickname'] }}",
+            "url": "https://www.tiktok.com/@{{ $user['uniqueId'] }}"
+        }
+    }
+    </script>
+    @endif
 </body>
 </html> 
