@@ -167,50 +167,158 @@ class TikTokController extends Controller
     public function loadMorePosts(Request $request)
     {
         try {
-            $username = $request->input('username');
-            $cursor = $request->input('cursor');
-            $forceRefresh = $request->attributes->get('force_refresh', false);
+            // Log request data for debugging
+            Log::debug('Load More Posts Request', [
+                'username' => $request->input('username'),
+                'cursor' => $request->input('cursor'),
+                'input' => $request->all()
+            ]);
             
-            // Fetch more posts with caching
-            $userPosts = $this->cacheService->getVideos($username, function() use ($username, $cursor) {
-                return $this->getUserPosts($username, $cursor);
-            }, $cursor, $forceRefresh);
+            // Validate inputs - removed _token requirement
+            $validator = validator($request->all(), [
+                'username' => 'required|string',
+                'cursor' => 'nullable|string'
+            ]);
             
-            // Schedule background refresh if we served stale data
-            if (isset($userPosts['is_stale']) && $userPosts['is_stale']) {
-                $this->cacheService->scheduleBackgroundRefresh('videos', [
-                    'username' => $username,
-                    'cursor' => $cursor
+            if ($validator->fails()) {
+                Log::warning('Validation failed for load more request', [
+                    'errors' => $validator->errors()->toArray()
                 ]);
-            }
-            
-            if (!$userPosts || isset($userPosts['code']) && $userPosts['code'] !== 0) {
+                
                 return response()->json([
-                    'error' => isset($userPosts['msg']) ? $userPosts['msg'] : 'Failed to load more videos',
+                    'error' => 'Invalid request parameters: ' . implode(', ', $validator->errors()->all()),
                     'videos' => [],
                     'cursor' => null,
-                    'hasMore' => false,
-                    'isStale' => isset($userPosts['is_stale']) ? $userPosts['is_stale'] : false,
-                    'cachedAt' => $userPosts['cached_at'] ?? null
+                    'hasMore' => false
+                ], 400);
+            }
+            
+            $username = $request->input('username');
+            $cursor = $request->input('cursor', 0); // Default to 0 if not provided
+            
+            // Handle empty cursor string
+            if ($cursor === '') {
+                $cursor = 0;
+            }
+            
+            // Initialize parameters for API request
+            $params = [
+                'unique_id' => $username,
+                'count' => 10
+            ];
+            
+            // Only add cursor if it's not 0 or empty
+            if (!empty($cursor) && $cursor !== 0 && $cursor !== '0') {
+                $params['cursor'] = $cursor;
+            }
+            
+            Log::debug('Processed request parameters', [
+                'username' => $username,
+                'cursor' => $cursor,
+                'cursor_type' => gettype($cursor),
+                'api_params' => $params
+            ]);
+            
+            // Make direct API request instead of using getUserPosts method
+            try {
+                $response = Http::timeout(30)->withHeaders([
+                    'X-RapidAPI-Key' => $this->apiKey,
+                    'X-RapidAPI-Host' => 'tiktok-scraper7.p.rapidapi.com'
+                ])->get($this->baseUrl . '/user/posts', $params);
+                
+                Log::debug('Raw API response for load more', [
+                    'status' => $response->status(),
+                    'headers' => $response->headers(),
+                    'body_length' => strlen($response->body()),
+                    'body_preview' => substr($response->body(), 0, 200),
+                ]);
+                
+                if (!$response->successful()) {
+                    return response()->json([
+                        'error' => 'API request failed with status: ' . $response->status(),
+                        'videos' => [],
+                        'cursor' => null,
+                        'hasMore' => false
+                    ], 200);
+                }
+                
+                $userPostsResponse = $response->json();
+                
+                if (!$userPostsResponse) {
+                    return response()->json([
+                        'error' => 'Failed to decode JSON response from API',
+                        'videos' => [],
+                        'cursor' => null,
+                        'hasMore' => false
+                    ], 200);
+                }
+                
+                if (isset($userPostsResponse['code']) && $userPostsResponse['code'] !== 0) {
+                    $errorMessage = $userPostsResponse['msg'] ?? 'Unknown API error';
+                    
+                    Log::error('TikTok API error', [
+                        'username' => $username,
+                        'cursor' => $cursor,
+                        'code' => $userPostsResponse['code'],
+                        'message' => $errorMessage
+                    ]);
+                    
+                    return response()->json([
+                        'error' => $errorMessage,
+                        'debug_info' => $userPostsResponse,
+                        'videos' => [],
+                        'cursor' => null,
+                        'hasMore' => false
+                    ], 200);
+                }
+                
+                // Extract videos data
+                $videos = $userPostsResponse['data']['videos'] ?? [];
+                $nextCursor = $userPostsResponse['data']['cursor'] ?? null;
+                $hasMore = $userPostsResponse['data']['hasMore'] ?? false;
+                
+                Log::debug('Successfully processed videos', [
+                    'username' => $username,
+                    'video_count' => count($videos),
+                    'next_cursor' => $nextCursor,
+                    'has_more' => $hasMore
+                ]);
+                
+                return response()->json([
+                    'videos' => $videos,
+                    'cursor' => $nextCursor,
+                    'hasMore' => $hasMore,
+                    'cachedAt' => date('Y-m-d H:i:s')
+                ]);
+                
+            } catch (\Exception $apiException) {
+                Log::error('API request exception: ' . $apiException->getMessage(), [
+                    'username' => $username,
+                    'cursor' => $cursor,
+                    'exception_type' => get_class($apiException),
+                    'trace' => $apiException->getTraceAsString()
+                ]);
+                
+                return response()->json([
+                    'error' => 'API error: ' . $apiException->getMessage(),
+                    'exception_type' => get_class($apiException),
+                    'videos' => [],
+                    'cursor' => null,
+                    'hasMore' => false
                 ], 200);
             }
             
-            return response()->json([
-                'videos' => $userPosts['data']['videos'] ?? [],
-                'cursor' => $userPosts['data']['cursor'] ?? null,
-                'hasMore' => $userPosts['data']['hasMore'] ?? false,
-                'isStale' => isset($userPosts['is_stale']) ? $userPosts['is_stale'] : false,
-                'cachedAt' => $userPosts['cached_at'] ?? null
-            ]);
         } catch (\Exception $e) {
-            Log::error('Error loading more posts: ' . $e->getMessage(), [
+            Log::error('Error in loadMorePosts: ' . $e->getMessage(), [
                 'username' => $request->input('username'),
                 'cursor' => $request->input('cursor'),
+                'exception_type' => get_class($e),
                 'trace' => $e->getTraceAsString()
             ]);
             
             return response()->json([
-                'error' => 'Error loading more videos: ' . $e->getMessage(),
+                'error' => 'Server error: ' . $e->getMessage(),
+                'exception_type' => get_class($e),
                 'videos' => [],
                 'cursor' => null,
                 'hasMore' => false
@@ -371,19 +479,56 @@ class TikTokController extends Controller
         $attempts = 0;
         $lastException = null;
         
+        Log::debug('Fetching user posts', [
+            'username' => $username,
+            'cursor' => $cursor,
+            'api_key_length' => strlen($this->apiKey),
+            'max_retries' => $this->maxRetries
+        ]);
+        
         while ($attempts <= $this->maxRetries) {
             try {
+                // Build query parameters
+                $params = [
+                    'unique_id' => $username,
+                    'count' => 10
+                ];
+                
+                // Only add cursor if it's not 0
+                if ($cursor !== 0 && !empty($cursor)) {
+                    $params['cursor'] = $cursor;
+                }
+                
+                Log::debug('Making TikTok API request for user posts', [
+                    'endpoint' => $this->baseUrl . '/user/posts',
+                    'params' => $params,
+                    'attempt' => $attempts + 1
+                ]);
+                
+                // Make the API request
                 $response = Http::timeout(15)->withHeaders([
                     'X-RapidAPI-Key' => $this->apiKey,
                     'X-RapidAPI-Host' => 'tiktok-scraper7.p.rapidapi.com'
-                ])->get($this->baseUrl . '/user/posts', [
-                    'unique_id' => $username,
-                    'count' => 10,
-                    'cursor' => $cursor
+                ])->get($this->baseUrl . '/user/posts', $params);
+                
+                // Log the raw response for debugging
+                Log::debug('Raw API response', [
+                    'status' => $response->status(),
+                    'headers' => $response->headers(),
+                    'body_length' => strlen($response->body()),
+                    'body_preview' => substr($response->body(), 0, 500),
                 ]);
                 
                 if ($response->successful()) {
-                    return $response->json();
+                    $jsonResponse = $response->json();
+                    Log::debug('Successful response', [
+                        'code' => $jsonResponse['code'] ?? 'not set',
+                        'has_data' => isset($jsonResponse['data']),
+                        'has_videos' => isset($jsonResponse['data']['videos']),
+                        'video_count' => isset($jsonResponse['data']['videos']) ? count($jsonResponse['data']['videos']) : 0
+                    ]);
+                    
+                    return $jsonResponse;
                 }
                 
                 Log::warning('Failed API call to get user posts', [
@@ -399,20 +544,24 @@ class TikTokController extends Controller
                     $attempts++;
                     // Exponential backoff
                     if ($attempts <= $this->maxRetries) {
-                        sleep(pow(2, $attempts));
+                        $sleepTime = pow(2, $attempts);
+                        Log::info("Retrying after {$sleepTime} seconds (attempt {$attempts})");
+                        sleep($sleepTime);
                         continue;
                     }
                 }
                 
                 return [
                     'code' => -1, 
-                    'msg' => 'API request failed: ' . $response->status() . ' - ' . $response->body()
+                    'msg' => 'API request failed: ' . $response->status() . ' - ' . $response->body(),
+                    'status_code' => $response->status()
                 ];
             } catch (\Exception $e) {
                 $lastException = $e;
                 Log::error('Exception when getting user posts: ' . $e->getMessage(), [
                     'username' => $username,
                     'cursor' => $cursor,
+                    'exception_type' => get_class($e),
                     'trace' => $e->getTraceAsString(),
                     'attempt' => $attempts + 1
                 ]);
@@ -424,20 +573,24 @@ class TikTokController extends Controller
                     $e instanceof \GuzzleHttp\Exception\ConnectException ||
                     $e instanceof \GuzzleHttp\Exception\RequestException
                 )) {
-                    sleep(pow(2, $attempts));
+                    $sleepTime = pow(2, $attempts);
+                    Log::info("Retrying after {$sleepTime} seconds (attempt {$attempts})");
+                    sleep($sleepTime);
                     continue;
                 }
                 
                 return [
                     'code' => -1, 
-                    'msg' => 'Exception: ' . $e->getMessage() . ' (' . get_class($e) . ')'
+                    'msg' => 'Exception: ' . $e->getMessage() . ' (' . get_class($e) . ')',
+                    'exception_type' => get_class($e)
                 ];
             }
         }
         
         return [
             'code' => -1, 
-            'msg' => 'Max retries exceeded. Last error: ' . ($lastException ? $lastException->getMessage() : 'Unknown error')
+            'msg' => 'Max retries exceeded. Last error: ' . ($lastException ? $lastException->getMessage() : 'Unknown error'),
+            'retry_count' => $attempts
         ];
     }
     

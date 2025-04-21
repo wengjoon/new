@@ -575,63 +575,100 @@
                 
                 btn.prop('disabled', true).text('Loading...');
                 
-                $.ajax({
-                    url: '{{ route("load.more") }}',
-                    type: 'POST',
-                    data: {
-                        username: username,
-                        cursor: cursor,
-                        _token: $('meta[name="csrf-token"]').attr('content')
-                    },
-                    success: function(response) {
-                        if (response.videos && response.videos.length > 0) {
-                            let html = '';
+                console.log('Loading more videos with:', {
+                    username: username,
+                    cursor: cursor
+                });
+                
+                // Create form data for the request
+                const formData = new FormData();
+                formData.append('username', username);
+                if (cursor) {
+                    formData.append('cursor', cursor);
+                }
+                
+                // Make the AJAX request using Fetch API instead of jQuery AJAX
+                fetch('{{ url('/load-more') }}', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    return response.text().then(text => {
+                        // First try to parse the response as JSON
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            // If parsing fails, throw an error with the raw text
+                            console.error('Failed to parse JSON response:', text);
+                            throw new Error('Invalid response format: ' + text);
+                        }
+                    });
+                })
+                .then(data => {
+                    console.log('Load more response:', data);
+                    
+                    if (data.videos && data.videos.length > 0) {
+                        let html = '';
+                        
+                        data.videos.forEach(function(video) {
+                            const duration = formatDuration(video.duration);
                             
-                            response.videos.forEach(function(video) {
-                                const duration = formatDuration(video.duration);
-                                
-                                html += `
-                                <div class="video-card">
-                                    <a href="javascript:void(0);" class="video-link" data-video-id="${video.video_id}" data-video-url="${video.play}">
-                                        <div class="video-thumbnail">
-                                            <img src="${video.cover}" alt="${video.title}">
-                                            <div class="video-duration">${duration}</div>
-                                        </div>
-                                    </a>
-                                    <div class="video-info">
-                                        <h3 class="video-title">${video.title}</h3>
-                                        <div class="video-stats">
-                                            <span><i class="fas fa-eye"></i> ${formatNumber(video.play_count)}</span>
-                                            <span><i class="fas fa-heart"></i> ${formatNumber(video.digg_count)}</span>
-                                            <span><i class="fas fa-comment"></i> ${formatNumber(video.comment_count)}</span>
-                                        </div>
+                            html += `
+                            <div class="video-card">
+                                <a href="javascript:void(0);" class="video-link" data-video-id="${video.video_id}" data-video-url="${video.play}">
+                                    <div class="video-thumbnail">
+                                        <img src="${video.cover}" alt="${video.title}">
+                                        <div class="video-duration">${duration}</div>
+                                    </div>
+                                </a>
+                                <div class="video-info">
+                                    <h3 class="video-title">${video.title}</h3>
+                                    <div class="video-stats">
+                                        <span><i class="fas fa-eye"></i> ${formatNumber(video.play_count)}</span>
+                                        <span><i class="fas fa-heart"></i> ${formatNumber(video.digg_count)}</span>
+                                        <span><i class="fas fa-comment"></i> ${formatNumber(video.comment_count)}</span>
                                     </div>
                                 </div>
-                                `;
-                            });
-                            
-                            $('#video-container').append(html);
-                            
-                            // Show stale indicator if applicable
-                            showStaleIndicator(response);
-                            
-                            if (response.hasMore) {
-                                btn.data('cursor', response.cursor);
-                                btn.prop('disabled', false).text('Load More');
-                            } else {
-                                btn.remove();
-                            }
+                            </div>
+                            `;
+                        });
+                        
+                        $('#video-container').append(html);
+                        
+                        // Show stale indicator if applicable
+                        if (data.cachedAt) {
+                            showStaleIndicator(data);
+                        }
+                        
+                        if (data.hasMore) {
+                            btn.data('cursor', data.cursor);
+                            btn.prop('disabled', false).text('Load More');
                         } else {
-                            if (response.error) {
-                                $('<div class="alert alert-warning my-3">' + response.error + '</div>').insertBefore(btn);
-                            }
                             btn.remove();
                         }
-                    },
-                    error: function(xhr, status, error) {
-                        $('<div class="alert alert-danger my-3">Failed to load videos: ' + error + '</div>').insertBefore(btn);
+                    } else {
+                        let errorMsg = 'No more videos available';
+                        
+                        if (data.error) {
+                            errorMsg = data.error;
+                            
+                            // Log debug info to console if available
+                            if (data.debug_info) {
+                                console.error('Error details:', data.debug_info);
+                            }
+                        }
+                        
+                        $('<div class="alert alert-warning my-3">' + errorMsg + '</div>').insertBefore(btn);
                         btn.prop('disabled', false).text('Try again');
                     }
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    
+                    const errorMsg = 'Failed to load videos: ' + error.message;
+                    $('<div class="alert alert-danger my-3">' + errorMsg + '</div>').insertBefore(btn);
+                    btn.prop('disabled', false).text('Try again');
                 });
             });
             
