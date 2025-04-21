@@ -70,6 +70,13 @@
             <p>Our service accesses publicly available TikTok data through third-party APIs. We do not share your personal information with TikTok or other third parties except as described in this privacy policy.</p>
             <p>We use Google Analytics to help us understand how our users use the Site. You can read more about how Google uses your Personal Information <a href="https://www.google.com/intl/en/policies/privacy/" target="_blank" rel="noopener noreferrer">here</a>.</p>
             
+            <h2>Ezoic Services</h2>
+            <p>We use Ezoic to provide personalization and analytics services on this website. This privacy policy includes information about how Ezoic and its partners use information collected from visitors to our site.</p>
+            
+            <!-- Ezoic Privacy Policy Embed -->
+            <span id="ezoic-privacy-policy-embed"></span>
+            <!-- End Ezoic Privacy Policy Embed -->
+            
             <h2>Data Security</h2>
             <p>The security of your data is important to us, but remember that no method of transmission over the Internet or method of electronic storage is 100% secure. While we strive to use commercially acceptable means to protect your personal data, we cannot guarantee its absolute security.</p>
             
@@ -98,4 +105,19 @@
             </ul>
         </div>
     </div>
+@endsection
+
+@section('scripts')
+    <!-- Ezoic Privacy Policy Loader Script -->
+    <script>
+        (function() {
+            // Create script element
+            var script = document.createElement('script');
+            script.async = true;
+            script.src = 'https://g.ezoic.net/ezoic/privacypolicyembedcode.js';
+            
+            // Append script to document
+            document.body.appendChild(script);
+        })();
+    </script>
 @endsection 
