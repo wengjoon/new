@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -31,5 +32,10 @@ class AppServiceProvider extends ServiceProvider
                 \Illuminate\Support\Facades\Log::error("Failed to create cache directory: " . $e->getMessage());
             }
         }
+
+        // Share analytics ID with all views
+        View::composer('*', function ($view) {
+            $view->with('googleAnalyticsId', config('analytics.google_id'));
+        });
     }
 }
