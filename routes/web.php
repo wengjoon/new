@@ -28,6 +28,19 @@ Route::get('/how-it-works', [TikTokController::class, 'howItWorks'])->name('how.
 Route::get('/popular-tiktok-profiles', [TikTokController::class, 'popularProfiles'])->name('popular.profiles');
 Route::get('/tiktok-tips', [TikTokController::class, 'tikTokTips'])->name('tiktok.tips');
 
+// Legal pages
+Route::get('/privacy-policy', function() {
+    return view('pages.privacy-policy');
+})->name('privacy.policy');
+
+Route::get('/terms-of-use', function() {
+    return view('pages.terms-of-use');
+})->name('terms.of.use');
+
+Route::get('/legal', function() {
+    return view('pages.legal');
+})->name('legal');
+
 // Test route
 Route::get('/test', function() {
     return view('test');

@@ -138,7 +138,12 @@
                 </div>
                 <div class="col-lg-4">
                     <h5>Legal</h5>
-                    <p>TikTok Viewer is not affiliated with TikTok. This is a third-party application.</p>
+                    <ul class="list-unstyled">
+                        <li><a href="{{ route('privacy.policy') }}" class="text-decoration-none">Privacy Policy</a></li>
+                        <li><a href="{{ route('terms.of.use') }}" class="text-decoration-none">Terms of Use</a></li>
+                        <li><a href="{{ route('legal') }}" class="text-decoration-none">Legal Information</a></li>
+                        <li><p class="small mt-2 mb-0">TikTok Viewer is not affiliated with TikTok. This is a third-party application.</p></li>
+                    </ul>
                 </div>
             </div>
             <div class="mt-3">
