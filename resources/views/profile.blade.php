@@ -319,6 +319,18 @@
         @if(isset($error))
             <div class="alert alert-warning my-3">
                 {{ $error }}
+                
+                @if(env('APP_DEBUG', false))
+                <div class="mt-2 small">
+                    <strong>Debug info:</strong> 
+                    @if(str_contains($error, 'Failed to fetch data'))
+                        <p>This may be a connectivity issue between the server and the TikTok API. Try refreshing the page or try again later.</p>
+                        <p>The API may be temporarily unavailable or rate limited. The application will automatically retry with exponential backoff.</p>
+                    @elseif(str_contains($error, 'User not found'))
+                        <p>The requested username may not exist or may have been banned/removed from TikTok.</p>
+                    @endif
+                </div>
+                @endif
             </div>
         @endif
         

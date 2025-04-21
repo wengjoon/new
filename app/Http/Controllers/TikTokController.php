@@ -12,6 +12,7 @@ class TikTokController extends Controller
     protected $apiKey;
     protected $baseUrl;
     protected $cacheService;
+    protected $maxRetries = 2; // Number of API retries to attempt
 
     public function __construct(CacheService $cacheService)
     {
@@ -187,99 +188,219 @@ class TikTokController extends Controller
      */
     public function getVideoDetails($videoId)
     {
-        try {
-            $response = Http::timeout(15)->withHeaders([
-                'X-RapidAPI-Key' => $this->apiKey,
-                'X-RapidAPI-Host' => 'tiktok-scraper7.p.rapidapi.com'
-            ])->get($this->baseUrl . '/video/info', [
-                'video_id' => $videoId
-            ]);
-            
-            if ($response->successful()) {
-                return $response->json();
+        $attempts = 0;
+        $lastException = null;
+        
+        while ($attempts <= $this->maxRetries) {
+            try {
+                $response = Http::timeout(15)->withHeaders([
+                    'X-RapidAPI-Key' => $this->apiKey,
+                    'X-RapidAPI-Host' => 'tiktok-scraper7.p.rapidapi.com'
+                ])->get($this->baseUrl . '/video/info', [
+                    'video_id' => $videoId
+                ]);
+                
+                if ($response->successful()) {
+                    return $response->json();
+                }
+                
+                Log::warning('Failed API call to get video details', [
+                    'video_id' => $videoId,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'attempt' => $attempts + 1
+                ]);
+                
+                // If we get a 429 (too many requests) or 500+ error, retry
+                if ($response->status() == 429 || $response->status() >= 500) {
+                    $attempts++;
+                    // Exponential backoff
+                    if ($attempts <= $this->maxRetries) {
+                        sleep(pow(2, $attempts));
+                        continue;
+                    }
+                }
+                
+                return [
+                    'code' => -1, 
+                    'msg' => 'API request failed: ' . $response->status() . ' - ' . $response->body()
+                ];
+            } catch (\Exception $e) {
+                $lastException = $e;
+                Log::error('Exception when getting video details: ' . $e->getMessage(), [
+                    'video_id' => $videoId,
+                    'trace' => $e->getTraceAsString(),
+                    'attempt' => $attempts + 1
+                ]);
+                
+                $attempts++;
+                // Only retry for network-related exceptions
+                if ($attempts <= $this->maxRetries && (
+                    $e instanceof \Illuminate\Http\Client\ConnectionException ||
+                    $e instanceof \GuzzleHttp\Exception\ConnectException ||
+                    $e instanceof \GuzzleHttp\Exception\RequestException
+                )) {
+                    sleep(pow(2, $attempts));
+                    continue;
+                }
+                
+                return [
+                    'code' => -1, 
+                    'msg' => 'Exception: ' . $e->getMessage() . ' (' . get_class($e) . ')'
+                ];
             }
-            
-            Log::warning('Failed API call to get video details', [
-                'video_id' => $videoId,
-                'status' => $response->status(),
-                'body' => $response->body()
-            ]);
-            
-            return ['code' => -1, 'msg' => 'API request failed: ' . $response->status()];
-        } catch (\Exception $e) {
-            Log::error('Exception when getting video details: ' . $e->getMessage(), [
-                'video_id' => $videoId,
-                'trace' => $e->getTraceAsString()
-            ]);
-            
-            return ['code' => -1, 'msg' => 'Exception: ' . $e->getMessage()];
         }
+        
+        return [
+            'code' => -1, 
+            'msg' => 'Max retries exceeded. Last error: ' . ($lastException ? $lastException->getMessage() : 'Unknown error')
+        ];
     }
 
     public function getUserInfo($username)
     {
-        try {
-            $response = Http::timeout(15)->withHeaders([
-                'X-RapidAPI-Key' => $this->apiKey,
-                'X-RapidAPI-Host' => 'tiktok-scraper7.p.rapidapi.com'
-            ])->get($this->baseUrl . '/user/info', [
-                'unique_id' => $username
-            ]);
-            
-            if ($response->successful()) {
-                return $response->json();
+        $attempts = 0;
+        $lastException = null;
+        
+        while ($attempts <= $this->maxRetries) {
+            try {
+                $response = Http::timeout(15)->withHeaders([
+                    'X-RapidAPI-Key' => $this->apiKey,
+                    'X-RapidAPI-Host' => 'tiktok-scraper7.p.rapidapi.com'
+                ])->get($this->baseUrl . '/user/info', [
+                    'unique_id' => $username
+                ]);
+                
+                if ($response->successful()) {
+                    return $response->json();
+                }
+                
+                Log::warning('Failed API call to get user info', [
+                    'username' => $username,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'attempt' => $attempts + 1
+                ]);
+                
+                // If we get a 429 (too many requests) or 500+ error, retry
+                if ($response->status() == 429 || $response->status() >= 500) {
+                    $attempts++;
+                    // Exponential backoff
+                    if ($attempts <= $this->maxRetries) {
+                        sleep(pow(2, $attempts));
+                        continue;
+                    }
+                }
+                
+                return [
+                    'code' => -1, 
+                    'msg' => 'API request failed: ' . $response->status() . ' - ' . $response->body()
+                ];
+            } catch (\Exception $e) {
+                $lastException = $e;
+                Log::error('Exception when getting user info: ' . $e->getMessage(), [
+                    'username' => $username,
+                    'trace' => $e->getTraceAsString(),
+                    'attempt' => $attempts + 1
+                ]);
+                
+                $attempts++;
+                // Only retry for network-related exceptions
+                if ($attempts <= $this->maxRetries && (
+                    $e instanceof \Illuminate\Http\Client\ConnectionException ||
+                    $e instanceof \GuzzleHttp\Exception\ConnectException ||
+                    $e instanceof \GuzzleHttp\Exception\RequestException
+                )) {
+                    sleep(pow(2, $attempts));
+                    continue;
+                }
+                
+                return [
+                    'code' => -1, 
+                    'msg' => 'Exception: ' . $e->getMessage() . ' (' . get_class($e) . ')'
+                ];
             }
-            
-            Log::warning('Failed API call to get user info', [
-                'username' => $username,
-                'status' => $response->status(),
-                'body' => $response->body()
-            ]);
-            
-            return ['code' => -1, 'msg' => 'API request failed: ' . $response->status()];
-        } catch (\Exception $e) {
-            Log::error('Exception when getting user info: ' . $e->getMessage(), [
-                'username' => $username,
-                'trace' => $e->getTraceAsString()
-            ]);
-            
-            return ['code' => -1, 'msg' => 'Exception: ' . $e->getMessage()];
         }
+        
+        return [
+            'code' => -1, 
+            'msg' => 'Max retries exceeded. Last error: ' . ($lastException ? $lastException->getMessage() : 'Unknown error')
+        ];
     }
 
     public function getUserPosts($username, $cursor = 0)
     {
-        try {
-            $response = Http::timeout(15)->withHeaders([
-                'X-RapidAPI-Key' => $this->apiKey,
-                'X-RapidAPI-Host' => 'tiktok-scraper7.p.rapidapi.com'
-            ])->get($this->baseUrl . '/user/posts', [
-                'unique_id' => $username,
-                'count' => 10,
-                'cursor' => $cursor
-            ]);
-            
-            if ($response->successful()) {
-                return $response->json();
+        $attempts = 0;
+        $lastException = null;
+        
+        while ($attempts <= $this->maxRetries) {
+            try {
+                $response = Http::timeout(15)->withHeaders([
+                    'X-RapidAPI-Key' => $this->apiKey,
+                    'X-RapidAPI-Host' => 'tiktok-scraper7.p.rapidapi.com'
+                ])->get($this->baseUrl . '/user/posts', [
+                    'unique_id' => $username,
+                    'count' => 10,
+                    'cursor' => $cursor
+                ]);
+                
+                if ($response->successful()) {
+                    return $response->json();
+                }
+                
+                Log::warning('Failed API call to get user posts', [
+                    'username' => $username,
+                    'cursor' => $cursor,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'attempt' => $attempts + 1
+                ]);
+                
+                // If we get a 429 (too many requests) or 500+ error, retry
+                if ($response->status() == 429 || $response->status() >= 500) {
+                    $attempts++;
+                    // Exponential backoff
+                    if ($attempts <= $this->maxRetries) {
+                        sleep(pow(2, $attempts));
+                        continue;
+                    }
+                }
+                
+                return [
+                    'code' => -1, 
+                    'msg' => 'API request failed: ' . $response->status() . ' - ' . $response->body()
+                ];
+            } catch (\Exception $e) {
+                $lastException = $e;
+                Log::error('Exception when getting user posts: ' . $e->getMessage(), [
+                    'username' => $username,
+                    'cursor' => $cursor,
+                    'trace' => $e->getTraceAsString(),
+                    'attempt' => $attempts + 1
+                ]);
+                
+                $attempts++;
+                // Only retry for network-related exceptions
+                if ($attempts <= $this->maxRetries && (
+                    $e instanceof \Illuminate\Http\Client\ConnectionException ||
+                    $e instanceof \GuzzleHttp\Exception\ConnectException ||
+                    $e instanceof \GuzzleHttp\Exception\RequestException
+                )) {
+                    sleep(pow(2, $attempts));
+                    continue;
+                }
+                
+                return [
+                    'code' => -1, 
+                    'msg' => 'Exception: ' . $e->getMessage() . ' (' . get_class($e) . ')'
+                ];
             }
-            
-            Log::warning('Failed API call to get user posts', [
-                'username' => $username,
-                'cursor' => $cursor,
-                'status' => $response->status(),
-                'body' => $response->body()
-            ]);
-            
-            return ['code' => -1, 'msg' => 'API request failed: ' . $response->status()];
-        } catch (\Exception $e) {
-            Log::error('Exception when getting user posts: ' . $e->getMessage(), [
-                'username' => $username,
-                'cursor' => $cursor,
-                'trace' => $e->getTraceAsString()
-            ]);
-            
-            return ['code' => -1, 'msg' => 'Exception: ' . $e->getMessage()];
         }
+        
+        return [
+            'code' => -1, 
+            'msg' => 'Max retries exceeded. Last error: ' . ($lastException ? $lastException->getMessage() : 'Unknown error')
+        ];
     }
     
     /**
@@ -374,5 +495,42 @@ class TikTokController extends Controller
     public function tikTokTips()
     {
         return view('pages.tiktok-tips');
+    }
+    
+    /**
+     * Test cache functionality
+     * This is useful for debugging cache issues
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function testCache()
+    {
+        try {
+            // Test cache connection
+            $cacheTest = $this->cacheService->testCacheConnection();
+            
+            // Check cache directory
+            $cachePath = config('cache.stores.file.path');
+            $cachePathExists = file_exists($cachePath);
+            $cachePathWritable = is_writable($cachePath);
+            
+            return response()->json([
+                'cache_test' => $cacheTest,
+                'cache_path_exists' => $cachePathExists,
+                'cache_path_writable' => $cachePathWritable,
+                'storage_path' => storage_path(),
+                'base_path' => base_path(),
+                'laravel_version' => app()->version(),
+                'php_version' => phpversion(),
+                'memory_limit' => ini_get('memory_limit'),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Cache test failed',
+                'message' => $e->getMessage(),
+                'exception' => get_class($e),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
     }
 } 

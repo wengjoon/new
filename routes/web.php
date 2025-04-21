@@ -49,4 +49,9 @@ Route::get('/test', function() {
 // Admin routes
 Route::middleware('admin')->group(function () {
     Route::get('/admin/warm-cache', [TikTokController::class, 'warmTrendingCache'])->name('admin.warm.cache');
+});
+
+// Diagnostic routes
+Route::prefix('diagnostic')->group(function () {
+    Route::get('/cache-test', [TikTokController::class, 'testCache'])->name('diagnostic.cache.test');
 }); 

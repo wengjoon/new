@@ -238,10 +238,37 @@ class CacheService
             // Mark data as stale for UI indication
             $staleData['is_stale'] = true;
             Log::info("Serving stale {$type} data for key: {$cacheKey}");
+            
+            // Log detailed cache information for debugging
+            Log::debug("Stale cache details", [
+                'key' => $cacheKey,
+                'type' => $type,
+                'cached_at' => $staleData['cached_at'] ?? 'unknown',
+                'cache_store' => config('cache.default'),
+                'cache_path' => config('cache.stores.file.path', 'not_file_store')
+            ]);
+            
             return $staleData;
         }
         
-        return ['code' => -1, 'msg' => 'Failed to fetch data and no stale data available'];
+        // Attempt to create the cache directory if it doesn't exist (file driver only)
+        if (config('cache.default') === 'file') {
+            $cachePath = config('cache.stores.file.path');
+            if (!file_exists($cachePath)) {
+                try {
+                    mkdir($cachePath, 0775, true);
+                    Log::info("Created missing cache directory: {$cachePath}");
+                } catch (\Exception $e) {
+                    Log::error("Failed to create cache directory: {$e->getMessage()}", [
+                        'path' => $cachePath,
+                        'exception' => get_class($e)
+                    ]);
+                }
+            }
+        }
+        
+        Log::error("No stale data available for key: {$cacheKey}");
+        return ['code' => -1, 'msg' => 'Failed to fetch data and no stale data available. Please try again later.'];
     }
     
     /**
@@ -294,6 +321,65 @@ class CacheService
         Cache::forget($staleVideoKey);
         
         Log::info("Invalidated cache for video: {$videoId}");
+    }
+    
+    /**
+     * Test cache connectivity and functionality
+     *
+     * @return array
+     */
+    public function testCacheConnection()
+    {
+        $result = [
+            'success' => false,
+            'cache_driver' => config('cache.default'),
+            'cache_path' => config('cache.default') === 'file' ? config('cache.stores.file.path') : null,
+            'path_exists' => false,
+            'path_writable' => false,
+            'write_test' => false,
+            'read_test' => false,
+            'error' => null
+        ];
+        
+        try {
+            // Check if cache path exists and is writable (if using file driver)
+            if (config('cache.default') === 'file') {
+                $cachePath = config('cache.stores.file.path');
+                $result['path_exists'] = file_exists($cachePath);
+                $result['path_writable'] = is_writable($cachePath);
+                
+                // Create directory if it doesn't exist
+                if (!$result['path_exists']) {
+                    try {
+                        mkdir($cachePath, 0775, true);
+                        $result['path_exists'] = true;
+                        $result['path_writable'] = is_writable($cachePath);
+                    } catch (\Exception $e) {
+                        $result['error'] = "Failed to create cache directory: " . $e->getMessage();
+                    }
+                }
+            }
+            
+            // Test writing to cache
+            $testKey = 'test_cache_connection_' . time();
+            $testValue = ['test' => true, 'timestamp' => now()->timestamp];
+            
+            Cache::put($testKey, $testValue, 60);
+            $result['write_test'] = true;
+            
+            // Test reading from cache
+            $readValue = Cache::get($testKey);
+            $result['read_test'] = ($readValue && isset($readValue['test']) && $readValue['test'] === true);
+            
+            // Clean up
+            Cache::forget($testKey);
+            
+            $result['success'] = $result['write_test'] && $result['read_test'];
+        } catch (\Exception $e) {
+            $result['error'] = $e->getMessage();
+        }
+        
+        return $result;
     }
     
     /**
