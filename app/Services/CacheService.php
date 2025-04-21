@@ -25,26 +25,28 @@ class CacheService
      */
     public function getProfile(string $username, callable $fetchCallback, bool $forceRefresh = false)
     {
-        $cacheKey = "profile:{$username}";
-        
-        // Force refresh requested (admin function)
-        if ($forceRefresh) {
-            return $this->refreshProfileCache($username, $fetchCallback, $cacheKey);
-        }
-        
-        // Attempt to get from cache
-        $cachedProfile = Cache::get($cacheKey);
-        
-        if ($cachedProfile) {
-            // Check if we need to log serving stale data
-            if (isset($cachedProfile['is_stale']) && $cachedProfile['is_stale']) {
-                Log::info("Serving stale profile data for user: {$username}");
+        // CACHE DISABLED - Always fetch fresh data
+        try {
+            Log::info("Cache disabled - Fetching fresh profile data for: {$username}");
+            $freshData = $fetchCallback();
+            
+            if (!$freshData || isset($freshData['code']) && $freshData['code'] !== 0) {
+                return ['code' => -1, 'msg' => 'Failed to fetch profile data from the API: ' . ($freshData['msg'] ?? 'Unknown error')];
             }
-            return $cachedProfile;
+            
+            // Add cache metadata even though not caching
+            $freshData['cached_at'] = Carbon::now()->toIso8601String();
+            $freshData['is_stale'] = false;
+            
+            return $freshData;
+        } catch (\Exception $e) {
+            Log::error("Error fetching profile data: " . $e->getMessage(), [
+                'username' => $username,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return ['code' => -1, 'msg' => 'Exception when fetching profile: ' . $e->getMessage()];
         }
-        
-        // Cache miss, fetch fresh data
-        return $this->refreshProfileCache($username, $fetchCallback, $cacheKey);
     }
     
     /**
@@ -58,26 +60,29 @@ class CacheService
      */
     public function getVideos(string $username, callable $fetchCallback, $cursor = null, bool $forceRefresh = false)
     {
-        $cacheKey = "videos:{$username}:" . ($cursor ?: 'initial');
-        
-        // Force refresh requested (admin function)
-        if ($forceRefresh) {
-            return $this->refreshVideosCache($username, $fetchCallback, $cacheKey, $cursor);
-        }
-        
-        // Attempt to get from cache
-        $cachedVideos = Cache::get($cacheKey);
-        
-        if ($cachedVideos) {
-            // Check if we need to log serving stale data
-            if (isset($cachedVideos['is_stale']) && $cachedVideos['is_stale']) {
-                Log::info("Serving stale videos data for user: {$username}, cursor: {$cursor}");
+        // CACHE DISABLED - Always fetch fresh data
+        try {
+            Log::info("Cache disabled - Fetching fresh videos data for: {$username}, cursor: {$cursor}");
+            $freshData = $fetchCallback();
+            
+            if (!$freshData || isset($freshData['code']) && $freshData['code'] !== 0) {
+                return ['code' => -1, 'msg' => 'Failed to fetch videos data from the API: ' . ($freshData['msg'] ?? 'Unknown error')];
             }
-            return $cachedVideos;
+            
+            // Add cache metadata even though not caching
+            $freshData['cached_at'] = Carbon::now()->toIso8601String();
+            $freshData['is_stale'] = false;
+            
+            return $freshData;
+        } catch (\Exception $e) {
+            Log::error("Error fetching videos data: " . $e->getMessage(), [
+                'username' => $username,
+                'cursor' => $cursor,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return ['code' => -1, 'msg' => 'Exception when fetching videos: ' . $e->getMessage()];
         }
-        
-        // Cache miss, fetch fresh data
-        return $this->refreshVideosCache($username, $fetchCallback, $cacheKey, $cursor);
     }
     
     /**
@@ -91,26 +96,29 @@ class CacheService
      */
     public function getVideo(string $username, string $videoId, callable $fetchCallback, bool $forceRefresh = false)
     {
-        $cacheKey = "video:{$username}:{$videoId}";
-        
-        // Force refresh requested (admin function)
-        if ($forceRefresh) {
-            return $this->refreshVideoCache($username, $videoId, $fetchCallback, $cacheKey);
-        }
-        
-        // Attempt to get from cache
-        $cachedVideo = Cache::get($cacheKey);
-        
-        if ($cachedVideo) {
-            // Check if we need to log serving stale data
-            if (isset($cachedVideo['is_stale']) && $cachedVideo['is_stale']) {
-                Log::info("Serving stale video data for video ID: {$videoId}");
+        // CACHE DISABLED - Always fetch fresh data
+        try {
+            Log::info("Cache disabled - Fetching fresh video data for: {$username}, video: {$videoId}");
+            $freshData = $fetchCallback();
+            
+            if (!$freshData || isset($freshData['code']) && $freshData['code'] !== 0) {
+                return ['code' => -1, 'msg' => 'Failed to fetch video data from the API: ' . ($freshData['msg'] ?? 'Unknown error')];
             }
-            return $cachedVideo;
+            
+            // Add cache metadata even though not caching
+            $freshData['cached_at'] = Carbon::now()->toIso8601String();
+            $freshData['is_stale'] = false;
+            
+            return $freshData;
+        } catch (\Exception $e) {
+            Log::error("Error fetching video data: " . $e->getMessage(), [
+                'username' => $username,
+                'video_id' => $videoId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return ['code' => -1, 'msg' => 'Exception when fetching video: ' . $e->getMessage()];
         }
-        
-        // Cache miss, fetch fresh data
-        return $this->refreshVideoCache($username, $videoId, $fetchCallback, $cacheKey);
     }
     
     /**

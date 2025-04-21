@@ -3,11 +3,12 @@
 return [
     /*
     |--------------------------------------------------------------------------
-    | Google Analytics Measurement ID
+    | Google Analytics
     |--------------------------------------------------------------------------
     |
-    | This is your Google Analytics measurement ID (G-XXXXXXXXXX)
+    | The Google Analytics ID used throughout the application.
+    | This is set in the .env file as GOOGLE_ANALYTICS_ID.
     |
     */
-    'measurement_id' => env('GOOGLE_ANALYTICS_ID', 'G-PTZLTK0KFQ'),
+    'google_id' => env('GOOGLE_ANALYTICS_ID', 'G-PTZLTK0KFQ'),
 ]; 

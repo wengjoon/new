@@ -16,7 +16,7 @@ class TikTokController extends Controller
 
     public function __construct(CacheService $cacheService)
     {
-        $this->apiKey = '4388edfedemsh1289c398bba84a2p133c6ajsn23ac51a4963b';
+        $this->apiKey = '5f6f67de6bmsh1e6aafcb72084e4p107e58jsncf5e09d03c5a';
         $this->baseUrl = 'https://tiktok-scraper7.p.rapidapi.com';
         $this->cacheService = $cacheService;
     }
@@ -56,15 +56,40 @@ class TikTokController extends Controller
         }
         
         try {
-            $forceRefresh = $request->attributes->get('force_refresh', false);
+            // Enable debug logging
+            Log::debug("Attempting to fetch profile for username: {$username}");
+            
+            $forceRefresh = $request->has('refresh') || $request->attributes->get('force_refresh', false);
             
             // Fetch user info with caching
             $userInfo = $this->cacheService->getProfile($username, function() use ($username) {
                 return $this->getUserInfo($username);
             }, $forceRefresh);
             
-            if (!$userInfo || isset($userInfo['code']) && $userInfo['code'] !== 0) {
+            // Log the full response for debugging
+            Log::debug('API response for user profile', [
+                'username' => $username,
+                'response' => $userInfo,
+            ]);
+            
+            if (!$userInfo) {
+                Log::error("User info is null for username: {$username}");
+                return redirect()->route('home')->with('error', 'Failed to retrieve user information. Please try again later.');
+            }
+            
+            if (isset($userInfo['code']) && $userInfo['code'] !== 0) {
                 $errorMessage = isset($userInfo['msg']) ? $userInfo['msg'] : 'User not found or API error occurred';
+                Log::warning("API error for username: {$username}, code: {$userInfo['code']}, message: {$errorMessage}");
+                
+                // Instead of redirecting immediately, show error details in dev environment
+                if (config('app.debug')) {
+                    return view('error', [
+                        'title' => 'API Error',
+                        'message' => $errorMessage,
+                        'details' => $userInfo,
+                    ]);
+                }
+                
                 return redirect()->route('home')->with('error', $errorMessage);
             }
 
@@ -121,6 +146,19 @@ class TikTokController extends Controller
                 'username' => $username,
                 'trace' => $e->getTraceAsString()
             ]);
+            
+            // Return more detailed error in debug mode
+            if (config('app.debug')) {
+                return view('error', [
+                    'title' => 'Error Fetching Profile',
+                    'message' => $e->getMessage(),
+                    'details' => [
+                        'exception' => get_class($e),
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
+                    ],
+                ]);
+            }
             
             return redirect()->route('home')->with('error', 'Error: ' . $e->getMessage());
         }

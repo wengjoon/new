@@ -28,7 +28,7 @@
     <meta name="twitter:description" content="View {{ $user['nickname'] }}'s TikTok videos anonymously without an account. Browse all their content privately.">
     <meta name="twitter:image" content="{{ $user['avatarThumb'] }}">
     
-    <meta name="google-analytics-id" content="{{ config('analytics.measurement_id') }}">
+    <meta name="google-analytics-id" content="{{ config('analytics.google_id') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -273,12 +273,12 @@
     </style>
 
     <!-- Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-PTZLTK0KFQ"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ config('analytics.google_id') }}"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-        gtag('config', 'G-PTZLTK0KFQ');
+        gtag('config', '{{ config('analytics.google_id') }}');
     </script>
 </head>
 <body>

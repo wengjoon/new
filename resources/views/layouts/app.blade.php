@@ -18,12 +18,12 @@
     @yield('meta-tags')
     
     <!-- Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-PTZLTK0KFQ"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ config('analytics.google_id', 'G-PTZLTK0KFQ') }}"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-        gtag('config', 'G-PTZLTK0KFQ');
+        gtag('config', '{{ config('analytics.google_id', 'G-PTZLTK0KFQ') }}');
     </script>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
